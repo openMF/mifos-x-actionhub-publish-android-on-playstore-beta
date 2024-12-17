@@ -29,8 +29,8 @@ This GitHub Action automates the process of building and publishing Android appl
 | `keystore_password`    | Password for the keystore file                        | Yes      |
 | `key_alias`            | Key alias for the keystore file                       | Yes      |
 | `key_password`         | Password for the key alias                            | Yes      |
-| `google_services`      | Google services JSON file content                     | Yes      |
-| `playstore_creds`      | Firebase credentials JSON file content                | Yes      |
+| `google_services`      | Base64 encoded Google services JSON file content                     | Yes      |
+| `playstore_creds`      | Base64 encoded Firebase credentials JSON file content                | Yes      |
 
 ## Usage
 
