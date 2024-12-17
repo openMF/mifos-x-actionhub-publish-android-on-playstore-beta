@@ -21,16 +21,16 @@ This GitHub Action automates the process of building and publishing Android appl
 
 ## Inputs
 
-| Input                  | Description                            | Required |
-|------------------------|----------------------------------------|----------|
-| `release_type`         | Type of release (internal/beta)        | Yes      |
-| `android_package_name` | Name of the Android project module     | Yes      |
-| `keystore_file`        | Base64 encoded keystore file           | Yes      |
-| `keystore_password`    | Password for the keystore file         | Yes      |
-| `key_alias`            | Key alias for the keystore file        | Yes      |
-| `key_password`         | Password for the key alias             | Yes      |
-| `google_services`      | Google services JSON file content      | Yes      |
-| `playstore_creds`      | Firebase credentials JSON file content | Yes      |
+| Input                  | Description                                           | Required |
+|------------------------|-------------------------------------------------------|----------|
+| `release_type`         | Type of release (internal/beta)                       | Yes      |
+| `android_package_name` | Name of the Android project module                    | Yes      |
+| `keystore_file`        | Base64 encoded keystore file                          | Yes      |
+| `keystore_password`    | Password for the keystore file                        | Yes      |
+| `key_alias`            | Key alias for the keystore file                       | Yes      |
+| `key_password`         | Password for the key alias                            | Yes      |
+| `google_services`      | Base64 encoded Google services JSON file content      | Yes      |
+| `playstore_creds`      | Base64 encoded Firebase credentials JSON file content | Yes      |
 
 ## Usage
 
