@@ -96,11 +96,11 @@ runs:
         echo $KEYSTORE | base64 --decode > ${{ inputs.android_package_name }}/release_keystore.keystore
         
         # Inflate google-services.json
-        echo $GOOGLE_SERVICES > ${{ inputs.android_package_name }}/google-services.json
+        echo $GOOGLE_SERVICES | base64 --decode > ${{ inputs.android_package_name }}/google-services.json
         
         # Inflate PlayStore credentials
         touch ${{ inputs.android_package_name }}/playStorePublishServiceCredentialsFile.json
-        echo $PLAYSTORE_CREDS > ${{ inputs.android_package_name }}/playStorePublishServiceCredentialsFile.json
+        echo $PLAYSTORE_CREDS | base64 --decode > ${{ inputs.android_package_name }}/playStorePublishServiceCredentialsFile.json
 
     # Build Android App Bundle for Play Store
     - name: Build Release
