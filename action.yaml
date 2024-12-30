@@ -9,21 +9,24 @@ inputs:
   release_type:
     description: 'Type of release'
     required: true
+
   android_package_name:
     description: 'Name of the Android project module'
     required: true
+
   keystore_file:
     description: 'Base64 encoded keystore file'
     required: true
   keystore_password:
     description: 'Password for the keystore file'
     required: true
-  key_alias:
+  keystore_alias:
     description: 'Key alias for the keystore file'
     required: true
-  key_password:
+  keystore_alias_password:
     description: 'Password for the key alias'
     required: true
+
   google_services:
     description: 'Google services JSON file'
     required: true
@@ -34,32 +37,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Set up Java development environment
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'  # Use Zulu distribution of OpenJDK
-        java-version: '17'     # Use Java 17 version
-
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-
-    # Cache Gradle dependencies and build outputs to speed up future builds
-    - name: Cache Gradle and build outputs
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-          build
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: ${{ runner.os }}-gradle-
-
     # Setup Ruby for Fastlane
     - name: Configure Ruby
       uses: ruby/setup-ruby@a2bbe5b1b236842c1cb7dd11e8e3b51e0a616acc # v1.202.0
       with:
         bundler-cache: true
-    
+
     # Install Fastlane and plugins for Play Store deployment
     - name: Install Fastlane
       shell: bash
@@ -69,19 +52,6 @@ runs:
         bundle exec fastlane add_plugin firebase_app_distribution
         bundle exec fastlane add_plugin increment_build_number
 
-    # Generate version number
-    - name: Generate Release Number
-      id: rel_number
-      shell: bash
-      run: |
-        ./gradlew versionFile
-        COMMITS=`git rev-list --count HEAD`
-        TAGS=`git tag | grep -v beta | wc -l`
-        VC=$(((COMMITS+TAGS) << 1))
-        echo "version-code=$VC" >> $GITHUB_OUTPUT
-        VERSION=`cat version.txt`
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-
     - name: Inflate Secrets
       shell: bash
       env:
@@ -89,30 +59,30 @@ runs:
         GOOGLE_SERVICES: ${{ inputs.google_services }}
         PLAYSTORE_CREDS: ${{ inputs.playstore_creds }}
       run: |
-        # Mock debug google-services.json
-        cp .github/mock-google-services.json ${{ inputs.android_package_name }}/google-services.json
+        mkdir -p secrets
         
         # Inflate keystore
-        echo $KEYSTORE | base64 --decode > ${{ inputs.android_package_name }}/release_keystore.keystore
+        echo $KEYSTORE | base64 --decode > keystores/release_keystore.keystore
         
         # Inflate google-services.json
         echo $GOOGLE_SERVICES | base64 --decode > ${{ inputs.android_package_name }}/google-services.json
         
         # Inflate PlayStore credentials
-        touch ${{ inputs.android_package_name }}/playStorePublishServiceCredentialsFile.json
-        echo $PLAYSTORE_CREDS | base64 --decode > ${{ inputs.android_package_name }}/playStorePublishServiceCredentialsFile.json
+        touch secrets/playStorePublishServiceCredentialsFile.json
+        echo $PLAYSTORE_CREDS | base64 --decode > secrets/playStorePublishServiceCredentialsFile.json
 
-    # Build Android App Bundle for Play Store
-    - name: Build Release
+    - name: Bundle Android App
       shell: bash
       env:
         KEYSTORE_PASSWORD: ${{ inputs.keystore_password }}
-        KEYSTORE_ALIAS: ${{ inputs.key_alias }}
-        KEYSTORE_ALIAS_PASSWORD: ${{ inputs.key_password }}
-        VERSION_CODE: ${{ steps.rel_number.outputs.version-code }}
-        VERSION: ${{ steps.rel_number.outputs.version }}
+        KEYSTORE_ALIAS: ${{ inputs.keystore_alias }}
+        KEYSTORE_ALIAS_PASSWORD: ${{ inputs.keystore_alias_password }}
       run: |
-        ./gradlew :${{inputs.android_package_name}}:bundleRelease
+        bundle exec fastlane android bundlePlayStoreRelease \
+        storeFile:release_keystore.keystore \
+        storePassword:${{ env.KEYSTORE_PASSWORD }} \
+        keyAlias:${{ env.KEYSTORE_ALIAS }} \
+        keyPassword:${{ env.KEYSTORE_ALIAS_PASSWORD }}
 
     # Save AAB files as artifacts
     - name: Archive Build

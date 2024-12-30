@@ -1,106 +1,153 @@
-# KMP Publish Android App to Play Store Beta
+# KMP Publish Android App to Play Store Action
 
-This GitHub Action automates the process of building and publishing Android applications to the Google Play Store's Internal Testing track, with an option to promote to Beta. It handles the complete workflow from setting up the build environment to managing the Play Store deployment using Fastlane.
+This GitHub Action automates the process of publishing Android applications to the Google Play Store Beta or Internal testing track. It handles building App Bundles (AAB), signing, and deployment through Fastlane.
 
 ## Features
 
-- Configurable release type (internal/beta)
-- Automated version code generation
-- Support for signing configuration
-- Play Store credential management
-- Gradle caching for faster builds
-- Automated internal to beta promotion
+- Automated Play Store deployment
+- Support for Internal and Beta testing tracks
+- AAB (Android App Bundle) generation
+- Release signing
+- Artifact archiving
+- Google Play Console integration
 
 ## Prerequisites
 
-- A valid Android project with Gradle configuration
-- Google Play Store developer account
-- Keystore file for app signing
-- Google Services configuration
-- Play Store credentials
+Before using this action, ensure you have:
 
-## Inputs
+1. A Google Play Console account with an existing app
+2. A service account with appropriate permissions in Google Play Console
+3. A release keystore for signing your app
+4. Google Services JSON file for your project
 
-| Input                  | Description                                           | Required |
-|------------------------|-------------------------------------------------------|----------|
-| `release_type`         | Type of release (internal/beta)                       | Yes      |
-| `android_package_name` | Name of the Android project module                    | Yes      |
-| `keystore_file`        | Base64 encoded keystore file                          | Yes      |
-| `keystore_password`    | Password for the keystore file                        | Yes      |
-| `key_alias`            | Key alias for the keystore file                       | Yes      |
-| `key_password`         | Password for the key alias                            | Yes      |
-| `google_services`      | Base64 encoded Google services JSON file content                     | Yes      |
-| `playstore_creds`      | Base64 encoded Firebase credentials JSON file content                | Yes      |
+## Setup
+
+### Fastlane Setup
+
+Create a `Gemfile` in your project root:
+
+```ruby
+source "https://rubygems.org"
+
+gem "fastlane"
+```
+
+Create a `fastlane/Fastfile` with the following content:
+
+```ruby
+default_platform(:android)
+
+platform :android do
+  desc "Bundle Play Store Release"
+  lane :bundlePlayStoreRelease do |options|
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      properties: {
+        "android.injected.signing.store.file" => options[:storeFile],
+        "android.injected.signing.store.password" => options[:storePassword],
+        "android.injected.signing.key.alias" => options[:keyAlias],
+        "android.injected.signing.key.password" => options[:keyPassword],
+      }
+    )
+  end
+
+  desc "Deploy to Internal Testing Track"
+  lane :deploy_internal do
+    upload_to_play_store(
+      track: 'internal',
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      json_key: 'secrets/playStorePublishServiceCredentialsFile.json',
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true
+    )
+  end
+
+  desc "Promote Internal to Beta"
+  lane :promote_to_beta do
+    upload_to_play_store(
+      track: 'internal',
+      track_promote_to: 'beta',
+      json_key: 'secrets/playStorePublishServiceCredentialsFile.json',
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true
+    )
+  end
+end
+```
 
 ## Usage
 
+Add the following workflow to your GitHub Actions:
+
 ```yaml
+name: Publish to Play Store
+
+on:
+  release:
+    types: [published]
+
 jobs:
   publish:
     runs-on: macos-latest
     steps:
-      - uses: openMF/kmp-publish-android-on-playstore-beta-action@v1.0.0
+      - uses: actions/checkout@v3
+      
+      - name: Publish to Play Store
+        uses: openMF/kmp-publish-android-on-playstore-beta-action@v2.0.0
         with:
-          release_type: 'beta'
           android_package_name: 'app'
-          keystore_file: ${{ secrets.KEYSTORE_FILE }}
-          keystore_password: ${{ secrets.KEYSTORE_PASSWORD }}
-          key_alias: ${{ secrets.KEY_ALIAS }}
-          key_password: ${{ secrets.KEY_PASSWORD }}
+          release_type: 'beta'  # or 'internal'
           google_services: ${{ secrets.GOOGLE_SERVICES }}
           playstore_creds: ${{ secrets.PLAYSTORE_CREDS }}
+          keystore_file: ${{ secrets.RELEASE_KEYSTORE }}
+          keystore_password: ${{ secrets.KEYSTORE_PASSWORD }}
+          keystore_alias: ${{ secrets.KEYSTORE_ALIAS }}
+          keystore_alias_password: ${{ secrets.KEYSTORE_ALIAS_PASSWORD }}
 ```
 
-## Workflow Details
+## Inputs
 
-1. **Environment Setup**
-    - Configures Java 17 (Zulu distribution)
-    - Sets up Gradle with caching
-    - Installs Ruby and Fastlane with required plugins
+| Input                     | Description                                         | Required |
+|---------------------------|-----------------------------------------------------|----------|
+| `release_type`            | Type of release ('internal' or 'beta')              | Yes      |
+| `android_package_name`    | Name of your Android project module                 | Yes      |
+| `keystore_file`           | Base64 encoded release keystore file                | Yes      |
+| `keystore_password`       | Password for the keystore file                      | Yes      |
+| `keystore_alias`          | Alias for the keystore file                         | Yes      |
+| `keystore_alias_password` | Password for the keystore alias                     | Yes      |
+| `google_services`         | Base64 encoded Google services JSON file            | Yes      |
+| `playstore_creds`         | Base64 encoded Play Store service account JSON file | Yes      |
 
-2. **Version Management**
-    - Automatically generates version codes based on commit history
-    - Reads version name from version.txt
+## Setting up Secrets
 
-3. **Secret Management**
-    - Decodes and configures the keystore file
-    - Sets up Google Services configuration
-    - Configures Play Store credentials
+1. Encode your files to base64:
+```bash
+base64 -i path/to/release.keystore -o keystore.txt
+base64 -i path/to/google-services.json -o google-services.txt
+base64 -i path/to/play-store-credentials.json -o playstore-creds.txt
+```
 
-4. **Build Process**
-    - Builds a signed Android App Bundle (AAB)
-    - Archives the AAB as a build artifact
+2. Add the following secrets to your GitHub repository:
+- `RELEASE_KEYSTORE`: Content of keystore.txt
+- `KEYSTORE_PASSWORD`: Your keystore password
+- `KEYSTORE_ALIAS`: Your keystore alias
+- `KEYSTORE_ALIAS_PASSWORD`: Your keystore alias password
+- `GOOGLE_SERVICES`: Content of google-services.txt
+- `PLAYSTORE_CREDS`: Content of playstore-creds.txt
 
-5. **Deployment**
-    - Deploys to Play Store Internal Testing track
-    - Optionally promotes to Beta if specified
+## Release Process
 
-## Requirements
+1. The action will:
+   - Build a signed Android App Bundle (AAB)
+   - Upload the AAB as a GitHub artifact
+   - Deploy to Play Store Internal testing track
+   - Optionally promote to Beta if `release_type` is set to 'beta'
 
-- GitHub Actions runner with Ubuntu
-- Gradle-based Android project
-- Fastlane configuration in the repository
-- Required secrets configured in repository settings
+## Artifacts
 
-## Notes
-
-- The action uses Gradle's version file generation
-- Version code is calculated using: `(commits + tags) << 1`
-- Artifacts are automatically uploaded and available in the GitHub Actions interface
-- The action supports both internal testing and beta track deployments
-- Gradle caching is enabled to improve build performance
-
-## Error Handling
-
-The action will fail if:
-- Any required input is missing
-- The keystore file is invalid
-- The build process fails
-- Play Store deployment encounters errors
-- Promotion to beta fails (if specified)
-
-## Security Considerations
-
-- All sensitive inputs should be stored as GitHub Secrets
-- The keystore file must be base64 encoded
-- Credentials are handled securely and not exposed in logs
+The action saves the generated AAB files as artifacts with the name 'release-aabs'. You can find these in your GitHub Actions run.
