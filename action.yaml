@@ -89,7 +89,7 @@ runs:
     - name: Promote Internal to Beta
       shell: bash
       if: inputs.release_type == 'beta'
-      run: bundle exec fastlane android promote_to_beta
+      run: bundle exec fastlane android promoteToBeta
 
     # Save AAB files as artifacts
     - name: Archive Build
