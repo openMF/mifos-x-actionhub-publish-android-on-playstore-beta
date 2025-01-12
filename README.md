@@ -53,7 +53,7 @@ platform :android do
   end
 
   desc "Deploy to Internal Testing Track"
-  lane :deploy_internal do
+  lane :deployInternal do
     upload_to_play_store(
       track: 'internal',
       aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
@@ -150,4 +150,4 @@ base64 -i path/to/play-store-credentials.json -o playstore-creds.txt
 
 ## Artifacts
 
-The action saves the generated AAB files as artifacts with the name 'release-aabs'. You can find these in your GitHub Actions run.
+The action saves the generated AAB files as artifacts with the name 'playstore-aabs'. You can find these in your GitHub Actions run.

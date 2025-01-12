@@ -71,33 +71,29 @@ runs:
         touch secrets/playStorePublishServiceCredentialsFile.json
         echo $PLAYSTORE_CREDS | base64 --decode > secrets/playStorePublishServiceCredentialsFile.json
 
-    - name: Bundle Android App
+    # Deploy to Play Store Internal testing track
+    - name: Deploy to Playstore Internal
       shell: bash
       env:
         KEYSTORE_PASSWORD: ${{ inputs.keystore_password }}
         KEYSTORE_ALIAS: ${{ inputs.keystore_alias }}
         KEYSTORE_ALIAS_PASSWORD: ${{ inputs.keystore_alias_password }}
       run: |
-        bundle exec fastlane android bundlePlayStoreRelease \
+        bundle exec fastlane android deployInternal \
         storeFile:release_keystore.keystore \
         storePassword:${{ env.KEYSTORE_PASSWORD }} \
         keyAlias:${{ env.KEYSTORE_ALIAS }} \
         keyPassword:${{ env.KEYSTORE_ALIAS_PASSWORD }}
-
-    # Save AAB files as artifacts
-    - name: Archive Build
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-aabs
-        path: ./**/*.aab
-
-    # Deploy to Play Store Internal testing track
-    - name: Deploy to Playstore Internal
-      shell: bash
-      run: bundle exec fastlane android deploy_internal
 
     # Promote to beta if specified
     - name: Promote Internal to Beta
       shell: bash
       if: inputs.release_type == 'beta'
       run: bundle exec fastlane android promote_to_beta
+
+    # Save AAB files as artifacts
+    - name: Archive Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: playstore-aabs
+        path: ./**/*.aab
