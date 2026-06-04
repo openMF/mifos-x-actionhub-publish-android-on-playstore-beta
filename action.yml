@@ -1,0 +1,74 @@
+# Composite action: Deploy Android AAB to Play Store internal (optionally promote → beta)
+# Patched for fastlane-modernization sub-plan 12:
+#   - AC19: SHA-pin ruby/setup-ruby
+name: 'Publish Android to Play Store (Internal / Beta)'
+description: 'Upload AAB to Play Store internal track, optionally promote to beta.'
+
+inputs:
+  android_package_name:
+    description: 'Android Gradle module name'
+    required: true
+  release_type:
+    description: "'internal' or 'beta'"
+    required: true
+  keystore_file:
+    description: 'Base64 release keystore'
+    required: true
+  keystore_password:
+    description: 'Keystore password'
+    required: true
+  keystore_alias:
+    description: 'Keystore alias'
+    required: true
+  keystore_alias_password:
+    description: 'Keystore alias password'
+    required: true
+  google_services:
+    description: 'Base64 google-services.json'
+    required: true
+  playstore_creds:
+    description: 'Base64 Play Store service account JSON'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Ruby (SHA-pinned — AC19)
+      uses: ruby/setup-ruby@afeafc3d1ab54a631816aba4c914a0081c12ff2f  # v1.232.0
+      with:
+        bundler-cache: true
+
+    - name: Inflate secrets
+      shell: bash
+      env:
+        KEYSTORE_B64: ${{ inputs.keystore_file }}
+        GOOGLE_SERVICES_B64: ${{ inputs.google_services }}
+        PLAYSTORE_CREDS_B64: ${{ inputs.playstore_creds }}
+      run: |
+        mkdir -p secrets keystores "${{ inputs.android_package_name }}"
+        echo "$KEYSTORE_B64" | base64 --decode > keystores/release_keystore.keystore
+        echo "$GOOGLE_SERVICES_B64" | base64 --decode > "${{ inputs.android_package_name }}/google-services.json"
+        echo "$PLAYSTORE_CREDS_B64" | base64 --decode > secrets/playStorePublishServiceCredentialsFile.json
+
+    - name: Deploy internal
+      shell: bash
+      run: bundle exec fastlane android deployInternal
+
+    - name: Promote internal → beta
+      if: ${{ inputs.release_type == 'beta' }}
+      shell: bash
+      run: bundle exec fastlane android promoteToBeta
+
+    - name: Cleanup
+      shell: bash
+      if: always()
+      run: |
+        rm -f secrets/playStorePublishServiceCredentialsFile.json
+        rm -f keystores/release_keystore.keystore
+        rm -f "${{ inputs.android_package_name }}/google-services.json"
+
+    - name: Upload AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: play-store-app
+        path: '**/build/outputs/bundle/**/*.aab'
