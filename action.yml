@@ -29,6 +29,10 @@ inputs:
   playstore_creds:
     description: 'Base64 Play Store service account JSON'
     required: true
+  kmp_flavor:
+    description: 'Product flavor to build and upload to Play Store (e.g. prod, demo, bankA)'
+    required: false
+    default: 'prod'
 
 runs:
   using: 'composite'
@@ -52,7 +56,9 @@ runs:
 
     - name: Deploy internal
       shell: bash
-      run: bundle exec fastlane android deployInternal
+      env:
+        KMP_FLAVOR: ${{ inputs.kmp_flavor }}
+      run: bundle exec fastlane android deployInternal kmp_flavor:${{ inputs.kmp_flavor }}
 
     - name: Promote internal → beta
       if: ${{ inputs.release_type == 'beta' }}
