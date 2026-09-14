@@ -39,7 +39,7 @@ runs:
   steps:
     # Setup Ruby for Fastlane
     - name: Configure Ruby
-      uses: ruby/setup-ruby@a2bbe5b1b236842c1cb7dd11e8e3b51e0a616acc # v1.202.0
+      uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1.202.0
       with:
         bundler-cache: true
 
@@ -93,7 +93,7 @@ runs:
 
     # Save AAB files as artifacts
     - name: Archive Build
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: playstore-aabs
         path: ./**/*.aab
